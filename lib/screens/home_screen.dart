@@ -10,7 +10,9 @@ import 'chat_screen.dart';
 import 'mapping_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onAITap;
+
+  const HomeScreen({super.key, this.onAITap});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -287,9 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildAIQuickAsk() {
     return GestureDetector(
       onTap: () {
-        // Navigate to chat tab
-        final scaffold = Scaffold.of(context);
-        if (scaffold.hasDrawer) scaffold.openDrawer();
+        widget.onAITap?.call();
       },
       child: Container(
         padding: const EdgeInsets.all(16),

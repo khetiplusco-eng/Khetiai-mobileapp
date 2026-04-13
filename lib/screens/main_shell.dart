@@ -16,12 +16,12 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    MarketScreen(),
-    ChatScreen(),
-    MappingScreen(),
-    LoanScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onAITap: () => setState(() => _currentIndex = 2)),
+    const MarketScreen(),
+    const ChatScreen(),
+    const MappingScreen(),
+    const LoanScreen(),
   ];
 
   @override

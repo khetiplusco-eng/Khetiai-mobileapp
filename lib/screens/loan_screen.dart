@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../utils/rich_text_renderer.dart';
 
 class LoanScreen extends StatefulWidget {
   const LoanScreen({super.key});
@@ -13,9 +14,9 @@ class LoanScreen extends StatefulWidget {
 class _LoanScreenState extends State<LoanScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _landCtrl = TextEditingController();
-  final _incomeCtrl = TextEditingController();
-  final _loanAmtCtrl = TextEditingController();
+  final _landCtrl = TextEditingController(text: '4');
+  final _incomeCtrl = TextEditingController(text: '150000');
+  final _loanAmtCtrl = TextEditingController(text: '300000');
 
   String _selectedCrop = 'Cotton';
   String _selectedPurpose = 'Crop Production';
@@ -24,41 +25,29 @@ class _LoanScreenState extends State<LoanScreen> {
   String _result = '';
   bool _showForm = true;
 
-  final _crops = ['Cotton', 'Wheat', 'Rice', 'Sugarcane', 'Soybean', 'Vegetable'];
+  final _crops = [
+    'Cotton', 'Wheat', 'Rice', 'Sugarcane', 'Soybean',
+    'Tur Dal', 'Vegetable', 'Onion'
+  ];
   final _purposes = [
     'Crop Production',
     'Land Development',
-    'Irrigation',
+    'Irrigation Setup',
     'Farm Equipment',
     'Post Harvest Storage',
     'Animal Husbandry',
+    'Horticulture',
   ];
 
   final _schemes = [
-    _LoanScheme(
-      'Kisan Credit Card (KCC)',
-      'Up to ₹3 lakh at 4% interest',
-      Icons.credit_card_rounded,
-      const Color(0xFF2d5a27),
-    ),
-    _LoanScheme(
-      'PM-KISAN',
-      '₹6,000/year income support',
-      Icons.agriculture_rounded,
-      AppTheme.tertiary,
-    ),
-    _LoanScheme(
-      'NABARD Farm Loan',
-      'Up to ₹20 lakh for farm needs',
-      Icons.account_balance_rounded,
-      const Color(0xFF7a3d00),
-    ),
-    _LoanScheme(
-      'Agri Gold Loan',
-      'Quick sanction against gold',
-      Icons.monetization_on_rounded,
-      const Color(0xFFb45309),
-    ),
+    _LoanScheme('Kisan Credit Card', 'Up to ₹3 lakh @ 4% p.a.',
+        Icons.credit_card_rounded, AppTheme.primary),
+    _LoanScheme('PM-KISAN', '₹6,000/year direct benefit',
+        Icons.agriculture_rounded, AppTheme.tertiary),
+    _LoanScheme('NABARD Farm Loan', 'Up to ₹20 lakh for farm needs',
+        Icons.account_balance_rounded, const Color(0xFF7a3d00)),
+    _LoanScheme('Crop Insurance (PMFBY)', 'Low premium, full coverage',
+        Icons.shield_rounded, const Color(0xFF1d4ed8)),
   ];
 
   Future<void> _checkEligibility() async {
@@ -85,7 +74,8 @@ class _LoanScreenState extends State<LoanScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _result = 'Error checking eligibility. Please try again.');
+        setState(() =>
+            _result = 'Unable to check eligibility. Please check your connection and try again.');
       }
     } finally {
       if (mounted) setState(() => _isStreaming = false);
@@ -97,8 +87,10 @@ class _LoanScreenState extends State<LoanScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Text(
-          'Loan & Schemes',
+          'Loans & Schemes',
           style: GoogleFonts.manrope(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -112,8 +104,12 @@ class _LoanScreenState extends State<LoanScreen> {
                 _showForm = true;
                 _result = '';
               }),
-              icon: const Icon(Icons.edit_rounded, size: 16),
-              label: const Text('Edit'),
+              icon: const Icon(Icons.edit_rounded, size: 16,
+                  color: AppTheme.primary),
+              label: Text('Edit',
+                  style: GoogleFonts.inter(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w600)),
             ),
         ],
       ),
@@ -122,118 +118,131 @@ class _LoanScreenState extends State<LoanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Quick schemes overview
+            const SizedBox(height: 16),
+            // Schemes overview
             Text(
               'Available Schemes',
               style: GoogleFonts.manrope(
-                fontSize: 17,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.onBackground,
               ),
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 110,
+              height: 108,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: _schemes.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, i) => _SchemeCard(scheme: _schemes[i]),
+                itemBuilder: (context, i) =>
+                    _SchemeCard(scheme: _schemes[i]),
               ),
             ),
             const SizedBox(height: 20),
 
-            if (_showForm) ...[
-              _buildEligibilityForm(),
-            ] else ...[
+            if (_showForm)
+              _buildForm()
+            else
               _buildResultCard(),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEligibilityForm() {
+  Widget _buildForm() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.calculate_rounded, color: AppTheme.primary, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Eligibility Check',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.onSurface,
-                  ),
+            Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ),
+                child: const Icon(Icons.calculate_rounded,
+                    color: AppTheme.primary, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Eligibility Checker',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.onSurface,
+                ),
+              ),
+            ]),
             const SizedBox(height: 20),
 
-            _FormLabel('Full Name'),
-            TextFormField(
+            _Label('Full Name'),
+            _TextField(
               controller: _nameCtrl,
-              decoration: const InputDecoration(hintText: 'Enter your name'),
+              hint: 'Enter your full name',
               validator: (v) => v!.isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 14),
 
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FormLabel('Land Area (acres)'),
-                      TextFormField(
-                        controller: _landCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(hintText: 'e.g. 4.5'),
-                        validator: (v) {
-                          if (v!.isEmpty) return 'Required';
-                          if (double.tryParse(v) == null) return 'Invalid';
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
+            Row(children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Label('Land Area (acres)'),
+                    _TextField(
+                      controller: _landCtrl,
+                      hint: 'e.g. 4.5',
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v!.isEmpty) return 'Required';
+                        if (double.tryParse(v) == null) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _FormLabel('Annual Income (₹)'),
-                      TextFormField(
-                        controller: _incomeCtrl,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(hintText: 'e.g. 150000'),
-                        validator: (v) {
-                          if (v!.isEmpty) return 'Required';
-                          if (double.tryParse(v) == null) return 'Invalid';
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Label('Annual Income (₹)'),
+                    _TextField(
+                      controller: _incomeCtrl,
+                      hint: 'e.g. 150000',
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        if (v!.isEmpty) return 'Required';
+                        if (double.tryParse(v) == null) return 'Invalid';
+                        return null;
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ]),
             const SizedBox(height: 14),
 
-            _FormLabel('Main Crop'),
+            _Label('Main Crop'),
             _DropdownField(
               value: _selectedCrop,
               items: _crops,
@@ -241,7 +250,7 @@ class _LoanScreenState extends State<LoanScreen> {
             ),
             const SizedBox(height: 14),
 
-            _FormLabel('Loan Purpose'),
+            _Label('Loan Purpose'),
             _DropdownField(
               value: _selectedPurpose,
               items: _purposes,
@@ -249,11 +258,11 @@ class _LoanScreenState extends State<LoanScreen> {
             ),
             const SizedBox(height: 14),
 
-            _FormLabel('Loan Amount Required (₹)'),
-            TextFormField(
+            _Label('Loan Amount Required (₹)'),
+            _TextField(
               controller: _loanAmtCtrl,
+              hint: 'e.g. 300000',
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: 'e.g. 300000'),
               validator: (v) {
                 if (v!.isEmpty) return 'Required';
                 if (int.tryParse(v) == null) return 'Invalid';
@@ -262,27 +271,78 @@ class _LoanScreenState extends State<LoanScreen> {
             ),
             const SizedBox(height: 14),
 
-            Row(
-              children: [
-                Checkbox(
-                  value: _hasKCC,
-                  onChanged: (v) => setState(() => _hasKCC = v!),
-                  activeColor: AppTheme.primary,
+            GestureDetector(
+              onTap: () => setState(() => _hasKCC = !_hasKCC),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _hasKCC
+                      ? AppTheme.primary.withOpacity(0.08)
+                      : AppTheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: _hasKCC
+                        ? AppTheme.primary.withOpacity(0.3)
+                        : AppTheme.outlineVariant,
+                  ),
                 ),
-                Text(
-                  'I have a Kisan Credit Card (KCC)',
-                  style: GoogleFonts.inter(fontSize: 14, color: AppTheme.onSurface),
+                child: Row(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: _hasKCC
+                            ? AppTheme.primary
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _hasKCC
+                              ? AppTheme.primary
+                              : AppTheme.outline,
+                          width: 2,
+                        ),
+                      ),
+                      child: _hasKCC
+                          ? const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 14)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'I already have a Kisan Credit Card (KCC)',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.onSurface,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 22),
 
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: _checkEligibility,
-                icon: const Icon(Icons.verified_rounded),
-                label: const Text('Check Eligibility'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                icon: const Icon(Icons.verified_rounded, size: 20),
+                label: Text(
+                  'Check My Eligibility',
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],
@@ -295,25 +355,37 @@ class _LoanScreenState extends State<LoanScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(50),
+          Row(children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2d5a27), Color(0xFF154212)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: const Icon(Icons.smart_toy_rounded, color: Colors.white, size: 22),
+                borderRadius: BorderRadius.circular(13),
               ),
-              const SizedBox(width: 10),
-              Column(
+              child: const Icon(Icons.smart_toy_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -324,80 +396,59 @@ class _LoanScreenState extends State<LoanScreen> {
                       color: AppTheme.primary,
                     ),
                   ),
-                  if (_isStreaming)
-                    Text(
-                      'Analyzing...',
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: AppTheme.onSurfaceVariant,
-                      ),
+                  Text(
+                    _isStreaming ? 'Analyzing eligibility...' : 'Assessment complete',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.onSurfaceVariant,
                     ),
+                  ),
                 ],
               ),
-              if (_isStreaming) ...[
-                const Spacer(),
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.primary,
-                  ),
-                ),
-              ],
-            ],
-          ),
+            ),
+            if (_isStreaming)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppTheme.primary),
+              ),
+          ]),
           const SizedBox(height: 16),
-          _buildResultText(_result),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+
+          if (_result.isNotEmpty)
+            RichTextRenderer(
+              text: _result,
+              isUser: false,
+              baseFontSize: 14,
+            )
+          else if (_isStreaming)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppTheme.primary),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Preparing assessment...',
+                  style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppTheme.onSurfaceVariant),
+                ),
+              ]),
+            ),
         ],
       ),
-    );
-  }
-
-  Widget _buildResultText(String text) {
-    final lines = text.split('\n');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: lines.map((line) {
-        if (line.startsWith('## ') || line.startsWith('# ')) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 4),
-            child: Text(
-              line.replaceAll(RegExp(r'^#+\s*'), ''),
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primary,
-              ),
-            ),
-          );
-        }
-        if (line.startsWith('### ')) {
-          return Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 2),
-            child: Text(
-              line.substring(4),
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primaryContainer,
-              ),
-            ),
-          );
-        }
-        if (line.isEmpty) return const SizedBox(height: 4);
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(
-            line.replaceAll('**', ''),
-            style: GoogleFonts.inter(
-              fontSize: 13.5,
-              color: AppTheme.onSurface,
-              height: 1.6,
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 
@@ -411,9 +462,11 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 }
 
-class _FormLabel extends StatelessWidget {
+// ── Sub-widgets ────────────────────────────────────────────────────────────────
+
+class _Label extends StatelessWidget {
   final String text;
-  const _FormLabel(this.text);
+  const _Label(this.text);
 
   @override
   Widget build(BuildContext context) {
@@ -426,6 +479,43 @@ class _FormLabel extends StatelessWidget {
           fontWeight: FontWeight.w600,
           color: AppTheme.onSurfaceVariant,
         ),
+      ),
+    );
+  }
+}
+
+class _TextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+
+  const _TextField({
+    required this.controller,
+    required this.hint,
+    this.keyboardType,
+    this.validator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      style: GoogleFonts.inter(fontSize: 14, color: AppTheme.onSurface),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            GoogleFonts.inter(color: AppTheme.onSurfaceVariant, fontSize: 13),
+        filled: true,
+        fillColor: AppTheme.surfaceContainerLow,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
@@ -448,20 +538,19 @@ class _DropdownField extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(50),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+              .map((i) =>
+                  DropdownMenuItem(value: i, child: Text(i)))
               .toList(),
           onChanged: onChanged,
           isExpanded: true,
           style: GoogleFonts.inter(
-            fontSize: 14,
-            color: AppTheme.onSurface,
-          ),
+              fontSize: 14, color: AppTheme.onSurface),
         ),
       ),
     );
@@ -473,7 +562,6 @@ class _LoanScheme {
   final String desc;
   final IconData icon;
   final Color color;
-
   const _LoanScheme(this.name, this.desc, this.icon, this.color);
 }
 
@@ -484,11 +572,11 @@ class _SchemeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 180,
+      width: 168,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: scheme.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: scheme.color.withOpacity(0.2)),
       ),
       child: Column(

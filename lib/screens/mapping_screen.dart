@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../utils/rich_text_renderer.dart';
 
 class MappingScreen extends StatefulWidget {
   const MappingScreen({super.key});
@@ -28,6 +29,8 @@ class _MappingScreenState extends State<MappingScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           'Field Intelligence',
           style: GoogleFonts.manrope(
@@ -36,20 +39,35 @@ class _MappingScreenState extends State<MappingScreen>
             color: AppTheme.primary,
           ),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.onSurfaceVariant,
-          indicatorColor: AppTheme.primary,
-          indicatorWeight: 3,
-          labelStyle: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(
+                  color: AppTheme.outlineVariant.withOpacity(0.3),
+                ),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: AppTheme.primary,
+              unselectedLabelColor: AppTheme.onSurfaceVariant,
+              indicatorColor: AppTheme.primary,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelStyle: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: GoogleFonts.inter(fontSize: 13),
+              tabs: const [
+                Tab(text: 'Satellite View'),
+                Tab(text: 'AI Disease Scan'),
+              ],
+            ),
           ),
-          tabs: const [
-            Tab(text: 'Satellite View'),
-            Tab(text: 'Disease Detection'),
-          ],
         ),
       ),
       body: TabBarView(
@@ -69,7 +87,7 @@ class _MappingScreenState extends State<MappingScreen>
   }
 }
 
-// ── Satellite Tab ─────────────────────────────────────────────────────────────
+// ── Satellite Tab ──────────────────────────────────────────────────────────────
 
 class _SatelliteTab extends StatefulWidget {
   const _SatelliteTab();
@@ -85,7 +103,7 @@ class _SatelliteTabState extends State<_SatelliteTab> {
   final _fields = [
     _FieldInfo('North Field', 0.84, 'Excellent', AppTheme.primary, '4.2 ha'),
     _FieldInfo('South Field', 0.67, 'Good', const Color(0xFF7ab07a), '2.8 ha'),
-    _FieldInfo('East Block', 0.42, 'Average', const Color(0xFFf59e0b), '1.5 ha'),
+    _FieldInfo('East Block', 0.42, 'Fair', const Color(0xFFf59e0b), '1.5 ha'),
     _FieldInfo('West Plot', 0.28, 'Poor', AppTheme.error, '0.9 ha'),
   ];
 
@@ -96,9 +114,9 @@ class _SatelliteTabState extends State<_SatelliteTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Layer selector
+          // Layer selector pills
           SizedBox(
-            height: 40,
+            height: 36,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _layers.length,
@@ -106,12 +124,16 @@ class _SatelliteTabState extends State<_SatelliteTab> {
               itemBuilder: (context, i) {
                 final sel = _layers[i] == _selectedLayer;
                 return GestureDetector(
-                  onTap: () => setState(() => _selectedLayer = _layers[i]),
+                  onTap: () =>
+                      setState(() => _selectedLayer = _layers[i]),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: sel ? AppTheme.primary : AppTheme.surfaceContainerLow,
+                      color: sel
+                          ? AppTheme.primary
+                          : AppTheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(50),
                     ),
                     child: Text(
@@ -129,54 +151,75 @@ class _SatelliteTabState extends State<_SatelliteTab> {
           ),
           const SizedBox(height: 16),
 
-          // Fake satellite map
+          // Satellite map
           Container(
-            height: 280,
+            height: 260,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
-              color: const Color(0xFF1a3a1a),
+              color: const Color(0xFF0d1f0d),
             ),
             clipBehavior: Clip.antiAlias,
             child: Stack(
               fit: StackFit.expand,
               children: [
-                CustomPaint(painter: _SatelliteMapPainter(_selectedLayer)),
+                CustomPaint(
+                    painter: _SatelliteMapPainter(_selectedLayer)),
+                // Layer badge
                 Positioned(
                   top: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
+                      color: Colors.black.withOpacity(0.55),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      '$_selectedLayer Layer • Live',
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF22c55e),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$_selectedLayer · Live',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+                // Legend
                 Positioned(
                   bottom: 12,
                   left: 12,
                   right: 12,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _LegendItem(color: AppTheme.primary, label: '0.8+'),
-                      _LegendItem(color: const Color(0xFF7ab07a), label: '0.6'),
-                      _LegendItem(color: const Color(0xFFf59e0b), label: '0.4'),
+                      const SizedBox(width: 10),
+                      _LegendItem(
+                          color: const Color(0xFF7ab07a), label: '0.6'),
+                      const SizedBox(width: 10),
+                      _LegendItem(
+                          color: const Color(0xFFf59e0b), label: '0.4'),
+                      const SizedBox(width: 10),
                       _LegendItem(color: AppTheme.error, label: '<0.2'),
+                      const Spacer(),
                       Text(
                         'NDVI Scale',
                         style: GoogleFonts.inter(
-                          fontSize: 9,
-                          color: Colors.white70,
-                        ),
+                            fontSize: 9, color: Colors.white60),
                       ),
                     ],
                   ),
@@ -184,7 +227,7 @@ class _SatelliteTabState extends State<_SatelliteTab> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
           Text(
             'Field Health Status',
@@ -195,8 +238,7 @@ class _SatelliteTabState extends State<_SatelliteTab> {
             ),
           ),
           const SizedBox(height: 12),
-
-          ..._fields.map((field) => _FieldCard(field: field)),
+          ..._fields.map((f) => _FieldCard(field: f)),
         ],
       ),
     );
@@ -210,20 +252,17 @@ class _LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 9)),
-      ],
-    );
+    return Row(children: [
+      Container(
+        width: 12,
+        height: 12,
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(3)),
+      ),
+      const SizedBox(width: 4),
+      Text(label,
+          style: const TextStyle(color: Colors.white70, fontSize: 9)),
+    ]);
   }
 }
 
@@ -246,23 +285,30 @@ class _FieldCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: field.color.withOpacity(0.15),
+              color: field.color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Center(
               child: Text(
                 field.ndvi.toStringAsFixed(2),
                 style: GoogleFonts.manrope(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: field.color,
                 ),
@@ -283,19 +329,21 @@ class _FieldCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${field.area} • NDVI: ${field.ndvi}',
+                  '${field.area} · NDVI: ${field.ndvi}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: AppTheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(50),
                   child: LinearProgressIndicator(
                     value: field.ndvi,
-                    backgroundColor: AppTheme.surfaceContainerHigh,
-                    valueColor: AlwaysStoppedAnimation(field.color),
+                    backgroundColor:
+                        AppTheme.surfaceContainerHigh,
+                    valueColor:
+                        AlwaysStoppedAnimation(field.color),
                     minHeight: 5,
                   ),
                 ),
@@ -304,9 +352,10 @@ class _FieldCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: field.color.withOpacity(0.15),
+              color: field.color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(50),
             ),
             child: Text(
@@ -330,8 +379,9 @@ class _SatelliteMapPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFF0d1f0d);
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bg);
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        Paint()..color = const Color(0xFF0d1f0d));
 
     final patches = [
       (Rect.fromLTWH(20, 20, 140, 100), const Color(0xFF1a5c1a)),
@@ -344,12 +394,13 @@ class _SatelliteMapPainter extends CustomPainter {
 
     for (final (rect, color) in patches) {
       canvas.drawRect(
-        rect,
-        Paint()..color = layer == 'NDVI' ? color : _transformColor(color, layer),
-      );
+          rect,
+          Paint()
+            ..color = layer == 'NDVI'
+                ? color
+                : _transform(color, layer));
     }
 
-    // Grid lines
     final grid = Paint()
       ..color = Colors.black.withOpacity(0.3)
       ..strokeWidth = 0.5;
@@ -361,31 +412,43 @@ class _SatelliteMapPainter extends CustomPainter {
     }
   }
 
-  Color _transformColor(Color c, String layer) {
-    if (layer == 'Moisture') return c.withBlue((c.blue + 60).clamp(0, 255));
-    if (layer == 'Temperature') return c.withRed((c.red + 80).clamp(0, 255));
+  Color _transform(Color c, String layer) {
+    if (layer == 'Moisture')
+      return c.withBlue((c.blue + 60).clamp(0, 255));
+    if (layer == 'Temperature')
+      return c.withRed((c.red + 80).clamp(0, 255));
     return c;
   }
 
   @override
-  bool shouldRepaint(covariant _SatelliteMapPainter oldDelegate) =>
-      oldDelegate.layer != layer;
+  bool shouldRepaint(covariant _SatelliteMapPainter old) =>
+      old.layer != layer;
 }
 
-// ── Disease Detection Tab ─────────────────────────────────────────────────────
+// ── Disease Detection Tab ──────────────────────────────────────────────────────
 
 class _DiseaseDetectionTab extends StatefulWidget {
   const _DiseaseDetectionTab();
 
   @override
-  State<_DiseaseDetectionTab> createState() => _DiseaseDetectionTabState();
+  State<_DiseaseDetectionTab> createState() =>
+      _DiseaseDetectionTabState();
 }
 
 class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
   File? _imageFile;
   bool _analyzing = false;
-  String? _result;
+  String? _diagnosisText;
+  String? _visualObservation;
   String? _error;
+  String? _pipeline;
+
+  // Selected crop for better diagnosis
+  String _selectedCrop = 'Cotton';
+  final _crops = [
+    'Cotton', 'Soybean', 'Wheat', 'Rice', 'Tomato', 'Onion',
+    'Sugarcane', 'Maize', 'Tur Dal'
+  ];
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -399,32 +462,53 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
 
     setState(() {
       _imageFile = File(picked.path);
-      _result = null;
+      _diagnosisText = null;
+      _visualObservation = null;
       _error = null;
+      _pipeline = null;
     });
     await _analyze();
   }
 
   Future<void> _analyze() async {
     if (_imageFile == null) return;
-    setState(() { _analyzing = true; _error = null; });
+    setState(() {
+      _analyzing = true;
+      _error = null;
+    });
 
     try {
       final bytes = await _imageFile!.readAsBytes();
-      final base64 = base64Encode(bytes);
+      final b64 = base64Encode(bytes);
       final ext = _imageFile!.path.split('.').last.toLowerCase();
       final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
 
       final result = await ApiService.analyzeImage(
-        base64Image: base64,
+        base64Image: b64,
         mimeType: mime,
+        crop: _selectedCrop,
+        district: 'Akola',
+        state: 'Maharashtra',
+        country: 'India',
       );
-      if (mounted) setState(() { _result = result; _analyzing = false; });
+
+      if (mounted) {
+        setState(() {
+          _diagnosisText = result['result'] as String? ?? '';
+          _visualObservation =
+              result['visualObservation'] as String?;
+          _pipeline = result['pipeline'] as String?;
+          _analyzing = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() {
-        _error = 'Analysis failed. Please try again.';
-        _analyzing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error =
+              'Analysis failed: ${e.toString().replaceAll('Exception: ', '')}';
+          _analyzing = false;
+        });
+      }
     }
   }
 
@@ -435,18 +519,19 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header card
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppTheme.primary.withOpacity(0.1),
-                  AppTheme.primaryFixed.withOpacity(0.3),
+                  AppTheme.primary.withOpacity(0.08),
+                  AppTheme.primaryFixed.withOpacity(0.25),
                 ],
               ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.primaryFixed, width: 1),
+              borderRadius: BorderRadius.circular(20),
+              border:
+                  Border.all(color: AppTheme.primaryFixed, width: 1),
             ),
             child: Row(
               children: [
@@ -455,13 +540,10 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
                   height: 48,
                   decoration: BoxDecoration(
                     color: AppTheme.primary,
-                    borderRadius: BorderRadius.circular(50),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    Icons.biotech_rounded,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+                  child: const Icon(Icons.biotech_rounded,
+                      color: Colors.white, size: 26),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -477,9 +559,9 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
                         ),
                       ),
                       Text(
-                        'Upload a crop photo for instant diagnosis',
+                        'Powered by Llama Scout Vision + K2 AI',
                         style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: AppTheme.onSurfaceVariant,
                         ),
                       ),
@@ -491,13 +573,60 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
           ),
           const SizedBox(height: 16),
 
-          // Pick buttons
+          // Crop selector
+          Text(
+            'Select Crop for Better Accuracy',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _crops.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (context, i) {
+                final sel = _crops[i] == _selectedCrop;
+                return GestureDetector(
+                  onTap: () =>
+                      setState(() => _selectedCrop = _crops[i]),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: sel
+                          ? AppTheme.primary
+                          : AppTheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: Text(
+                      _crops[i],
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: sel ? Colors.white : AppTheme.onSurface,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Pick image buttons
           Row(
             children: [
               Expanded(
                 child: _ActionButton(
                   icon: Icons.camera_alt_rounded,
                   label: 'Take Photo',
+                  filled: true,
                   onTap: () => _pickImage(ImageSource.camera),
                 ),
               ),
@@ -505,9 +634,9 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
               Expanded(
                 child: _ActionButton(
                   icon: Icons.photo_library_rounded,
-                  label: 'From Gallery',
+                  label: 'Gallery',
+                  filled: false,
                   onTap: () => _pickImage(ImageSource.gallery),
-                  outlined: true,
                 ),
               ),
             ],
@@ -515,104 +644,122 @@ class _DiseaseDetectionTabState extends State<_DiseaseDetectionTab> {
           const SizedBox(height: 16),
 
           // Image preview
-          if (_imageFile != null)
-            Container(
-              height: 220,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                color: AppTheme.surfaceContainerHigh,
-              ),
-              clipBehavior: Clip.antiAlias,
+          if (_imageFile != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
               child: Stack(
-                fit: StackFit.expand,
                 children: [
-                  Image.file(_imageFile!, fit: BoxFit.cover),
+                  Image.file(
+                    _imageFile!,
+                    height: 220,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                   if (_analyzing)
-                    Container(
-                      color: Colors.black.withOpacity(0.5),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircularProgressIndicator(color: Colors.white),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Analyzing with AI...',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.55),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 3),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Analyzing with AI...',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ],
+                            Text(
+                              'Llama Scout Vision → K2 Diagnostics',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-
-          if (_error != null) ...[
             const SizedBox(height: 16),
+          ],
+
+          // Error state
+          if (_error != null)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppTheme.errorContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Text(
-                _error!,
-                style: GoogleFonts.inter(color: AppTheme.error, fontSize: 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded,
+                      color: AppTheme.error),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: GoogleFonts.inter(
+                          color: AppTheme.error, fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
             ),
+
+          // Diagnosis result
+          if (_diagnosisText != null && _diagnosisText!.isNotEmpty) ...[
+            _DiagnosisResultCard(
+              result: _diagnosisText!,
+              pipeline: _pipeline,
+              crop: _selectedCrop,
+            ),
           ],
 
-          if (_result != null) ...[
-            const SizedBox(height: 16),
-            _DiseaseResultCard(result: _result!),
-          ],
-
-          if (_imageFile == null && _result == null)
-            _buildPlaceholder(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      height: 200,
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: AppTheme.outlineVariant,
-          width: 1.5,
-          strokeAlign: BorderSide.strokeAlignInside,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_photo_alternate_rounded,
-            size: 48,
-            color: AppTheme.outlineVariant,
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Upload a photo of your crop',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: AppTheme.onSurfaceVariant,
+          // Placeholder when no image
+          if (_imageFile == null)
+            Container(
+              height: 180,
+              margin: const EdgeInsets.only(top: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppTheme.outlineVariant, width: 1.5),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_photo_alternate_rounded,
+                    size: 44,
+                    color: AppTheme.outlineVariant,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Upload a photo of your crop',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    'Leaves, stems, roots, fruits — all supported',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.outlineVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            'Supports leaves, stems, roots, fruits',
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              color: AppTheme.outlineVariant,
-            ),
-          ),
         ],
       ),
     );
@@ -623,13 +770,13 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final bool outlined;
+  final bool filled;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.outlined = false,
+    required this.filled,
   });
 
   @override
@@ -637,25 +784,27 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: outlined ? Colors.transparent : AppTheme.primary,
-          borderRadius: BorderRadius.circular(50),
-          border: outlined
-              ? Border.all(color: AppTheme.primary, width: 1.5)
-              : null,
+          color: filled ? AppTheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: filled
+              ? null
+              : Border.all(color: AppTheme.primary, width: 1.5),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: outlined ? AppTheme.primary : Colors.white, size: 20),
+            Icon(icon,
+                color: filled ? Colors.white : AppTheme.primary,
+                size: 20),
             const SizedBox(width: 8),
             Text(
               label,
               style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: outlined ? AppTheme.primary : Colors.white,
+                color: filled ? Colors.white : AppTheme.primary,
               ),
             ),
           ],
@@ -665,101 +814,157 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-class _DiseaseResultCard extends StatelessWidget {
+class _DiagnosisResultCard extends StatelessWidget {
   final String result;
-  const _DiseaseResultCard({required this.result});
+  final String? pipeline;
+  final String crop;
+
+  const _DiagnosisResultCard({
+    required this.result,
+    required this.crop,
+    this.pipeline,
+  });
+
+  // Extract severity score from text
+  int? _extractSeverity(String text) {
+    final match =
+        RegExp(r'Severity Score.*?(\d+)', caseSensitive: false)
+            .firstMatch(text);
+    return match != null ? int.tryParse(match.group(1) ?? '') : null;
+  }
+
+  Color _severityColor(int score) {
+    if (score <= 3) return const Color(0xFF22c55e);
+    if (score <= 7) return const Color(0xFFf59e0b);
+    return AppTheme.error;
+  }
+
+  String _severityLabel(int score) {
+    if (score <= 3) return 'Monitor';
+    if (score <= 7) return 'Treat Soon';
+    return 'Act Now!';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sections = _parseSections(result);
+    final severity = _extractSeverity(result);
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             children: [
-              const Icon(Icons.check_circle_rounded,
-                  color: AppTheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Diagnosis Report',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
                   color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.check_circle_rounded,
+                    color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Diagnosis Report',
+                      style: GoogleFonts.manrope(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primary,
+                      ),
+                    ),
+                    Text(
+                      '$crop · Akola, Maharashtra',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              if (severity != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _severityColor(severity).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(50),
+                    border: Border.all(
+                        color: _severityColor(severity).withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        '$severity/10',
+                        style: GoogleFonts.manrope(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: _severityColor(severity),
+                        ),
+                      ),
+                      Text(
+                        _severityLabel(severity),
+                        style: GoogleFonts.inter(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: _severityColor(severity),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
           const SizedBox(height: 14),
-          ...sections.map((s) => _SectionBlock(section: s)),
+
+          // Clean rendered markdown
+          RichTextRenderer(
+            text: result,
+            isUser: false,
+            baseFontSize: 13.5,
+          ),
+
+          if (pipeline != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Pipeline: $pipeline',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  color: AppTheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
-    );
-  }
-
-  List<_Section> _parseSections(String text) {
-    final sections = <_Section>[];
-    final lines = text.split('\n');
-    _Section? current;
-
-    for (final line in lines) {
-      if (line.startsWith('## ')) {
-        if (current != null) sections.add(current);
-        current = _Section(title: line.substring(3), body: '');
-      } else if (line.startsWith('### ')) {
-        if (current != null) {
-          current.body += '\n**${line.substring(4)}**';
-        }
-      } else if (current != null) {
-        current.body += '\n$line';
-      }
-    }
-    if (current != null) sections.add(current);
-    return sections;
-  }
-}
-
-class _Section {
-  final String title;
-  String body;
-  _Section({required this.title, required this.body});
-}
-
-class _SectionBlock extends StatelessWidget {
-  final _Section section;
-  const _SectionBlock({required this.section});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          section.title,
-          style: GoogleFonts.manrope(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.primaryContainer,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          section.body.trim(),
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            color: AppTheme.onSurface,
-            height: 1.6,
-          ),
-        ),
-        const SizedBox(height: 12),
-      ],
     );
   }
 }

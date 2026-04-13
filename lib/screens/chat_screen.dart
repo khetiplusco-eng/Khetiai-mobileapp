@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/api_service.dart';
+import '../utils/rich_text_renderer.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -10,19 +11,22 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [];
   bool _isStreaming = false;
 
-  final List<String> _quickPrompts = [
-    '🌱 Best crop for this season?',
-    '💧 Irrigation advice',
-    '🐛 Pest control tips',
-    '💊 Fertilizer schedule',
-    '🌦️ Weather impact on crops',
-    '💰 Government schemes for farmers',
+  // Conversation context for multi-turn
+  final List<String> _contextHistory = [];
+
+  final List<_QuickPrompt> _quickPrompts = [
+    _QuickPrompt('🌱', 'Best crop for Kharif?', 'What is the best crop to grow in Kharif season in Akola, Maharashtra with black cotton soil?'),
+    _QuickPrompt('💧', 'Irrigation advice', 'Give irrigation schedule for cotton crop in Akola, Maharashtra. Include water quantity and timing.'),
+    _QuickPrompt('🐛', 'Pest control', 'What are the common pests in cotton and soybean in Vidarbha? Give IPM strategy with chemical and organic options.'),
+    _QuickPrompt('💊', 'Fertilizer schedule', 'Give a complete fertilizer schedule for cotton crop in black cotton soil, Maharashtra. Include costs in ₹/acre.'),
+    _QuickPrompt('🌦️', 'Weather impact', 'How does excess/deficit rainfall impact cotton yield in Vidarbha? What should I do?'),
+    _QuickPrompt('💰', 'Government schemes', 'What are the best government schemes for small farmers in Maharashtra? Include PM-KISAN, KCC, crop insurance.'),
   ];
 
   @override
@@ -34,7 +38,14 @@ class _ChatScreenState extends State<ChatScreen> {
   void _addGreeting() {
     _messages.add(_ChatMessage(
       text:
-          'Namaste! 🙏 I\'m **AgriIntel**, your AI farming assistant for Indian agriculture.\n\nI can help you with:\n• Crop selection & planting advice\n• Disease & pest identification\n• Fertilizer & irrigation guidance\n• Market prices & government schemes\n• Loan eligibility\n\nWhat would you like to know today?',
+          'Namaste! 🙏 I\'m **AgriIntel AI**, your precision agriculture advisor for Indian farming.\n\n'
+          'I can help with:\n'
+          '- Crop selection with profit calculations\n'
+          '- Disease & pest identification\n'
+          '- Fertilizer & irrigation scheduling\n'
+          '- Market prices & sell/hold decisions\n'
+          '- Government schemes & loan eligibility\n\n'
+          'Ask me anything about your farm!',
       isUser: false,
     ));
   }
@@ -43,27 +54,44 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.trim().isEmpty || _isStreaming) return;
     _controller.clear();
 
+    final userMsg = text.trim();
+
     setState(() {
-      _messages.add(_ChatMessage(text: text, isUser: true));
+      _messages.add(_ChatMessage(text: userMsg, isUser: true));
       _messages.add(_ChatMessage(text: '', isUser: false, isStreaming: true));
       _isStreaming = true;
     });
 
     _scrollToBottom();
 
+    // Build context from last 3 exchanges
+    final context = _contextHistory.length > 6
+        ? _contextHistory.sublist(_contextHistory.length - 6).join('\n')
+        : _contextHistory.join('\n');
+
     try {
-      await for (final chunk in ApiService.chatStream(text)) {
+      await for (final chunk in ApiService.chatStream(
+        userMsg,
+        context: context.isNotEmpty ? context : null,
+        district: 'Akola',
+        state: 'Maharashtra',
+        country: 'India',
+      )) {
         if (!mounted) break;
         setState(() {
           _messages.last.text += chunk;
         });
         _scrollToBottom();
       }
+
+      // Add to context history
+      _contextHistory.add('User: $userMsg');
+      _contextHistory.add('AI: ${_messages.last.text}');
     } catch (e) {
       if (mounted) {
         setState(() {
           _messages.last.text =
-              'Sorry, I encountered an error. Please check your connection and try again.';
+              'Sorry, I couldn\'t connect to the server. Please check your connection and try again.';
         });
       }
     } finally {
@@ -92,95 +120,118 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AgriIntel AI',
-                  style: GoogleFonts.manrope(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primary,
-                  ),
-                ),
-                Text(
-                  'Agricultural Expert',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppTheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppTheme.primary),
-            onPressed: () {
-              setState(() {
-                _messages.clear();
-                _addGreeting();
-              });
-            },
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Column(
         children: [
-          // Messages
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               itemCount: _messages.length,
               itemBuilder: (context, i) => _buildMessage(_messages[i]),
             ),
           ),
-          // Quick prompts
-          if (_messages.length <= 1)
-            _buildQuickPrompts(),
-          // Input
+          if (_messages.length <= 1) _buildQuickPrompts(),
           _buildInput(),
         ],
       ),
     );
   }
 
-  Widget _buildMessage(_ChatMessage msg) {
-    final isUser = msg.isUser;
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      titleSpacing: 16,
+      title: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primary, AppTheme.primaryContainer],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.smart_toy_rounded,
+                color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'AgriIntel AI',
+                style: GoogleFonts.manrope(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.primary,
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF22c55e),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Text(
+                    'Agricultural Expert',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.refresh_rounded,
+              color: AppTheme.onSurfaceVariant, size: 20),
+          onPressed: () {
+            setState(() {
+              _messages.clear();
+              _contextHistory.clear();
+              _addGreeting();
+            });
+          },
+          tooltip: 'Clear chat',
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
 
+  Widget _buildMessage(_ChatMessage msg) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            msg.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-          if (!isUser) ...[
+          if (!msg.isUser) ...[
             Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: AppTheme.primaryContainer,
-                borderRadius: BorderRadius.circular(50),
+                gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryContainer],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.smart_toy_rounded,
                   color: Colors.white, size: 18),
@@ -189,31 +240,47 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: msg.isStreaming && msg.text.isEmpty ? 12 : 12,
+              ),
               decoration: BoxDecoration(
-                color: isUser ? AppTheme.primary : AppTheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20).copyWith(
-                  bottomRight: isUser
+                color: msg.isUser
+                    ? AppTheme.primary
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(18).copyWith(
+                  bottomRight: msg.isUser
                       ? const Radius.circular(4)
-                      : const Radius.circular(20),
-                  bottomLeft: isUser
-                      ? const Radius.circular(20)
+                      : const Radius.circular(18),
+                  bottomLeft: msg.isUser
+                      ? const Radius.circular(18)
                       : const Radius.circular(4),
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: msg.isStreaming && msg.text.isEmpty
                   ? _buildTypingIndicator()
-                  : _buildMarkdownText(msg.text, isUser),
+                  : RichTextRenderer(
+                      text: msg.text,
+                      isUser: msg.isUser,
+                      baseFontSize: 14,
+                    ),
             ),
           ),
-          if (isUser) ...[
+          if (msg.isUser) ...[
             const SizedBox(width: 8),
             Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
                 color: AppTheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(50),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.person_rounded,
                   color: AppTheme.primary, size: 18),
@@ -224,149 +291,61 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMarkdownText(String text, bool isUser) {
-    // Simple markdown-like rendering
-    final lines = text.split('\n');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: lines.map((line) {
-        if (line.startsWith('## ')) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 4, top: 8),
-            child: Text(
-              line.substring(3),
-              style: GoogleFonts.manrope(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: isUser ? Colors.white : AppTheme.primary,
-              ),
-            ),
-          );
-        } else if (line.startsWith('### ')) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2, top: 6),
-            child: Text(
-              line.substring(4),
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: isUser ? Colors.white70 : AppTheme.primaryContainer,
-              ),
-            ),
-          );
-        } else if (line.startsWith('• ') || line.startsWith('- ')) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 2, left: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '• ',
-                  style: TextStyle(
-                    color: isUser ? Colors.white70 : AppTheme.primary,
-                    fontSize: 14,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    line.substring(2),
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: isUser ? Colors.white : AppTheme.onSurface,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        } else if (line.startsWith('**') && line.endsWith('**')) {
-          return Text(
-            line.replaceAll('**', ''),
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: isUser ? Colors.white : AppTheme.onSurface,
-              height: 1.5,
-            ),
-          );
-        } else {
-          // Handle inline bold
-          final boldParts = line.split('**');
-          if (boldParts.length > 1) {
-            return RichText(
-              text: TextSpan(
-                children: boldParts.asMap().entries.map((e) {
-                  return TextSpan(
-                    text: e.value,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: e.key.isOdd
-                          ? FontWeight.w700
-                          : FontWeight.w400,
-                      color: isUser ? Colors.white : AppTheme.onSurface,
-                      height: 1.5,
-                    ),
-                  );
-                }).toList(),
-              ),
-            );
-          }
-          return line.isEmpty
-              ? const SizedBox(height: 4)
-              : Text(
-                  line,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: isUser ? Colors.white : AppTheme.onSurface,
-                    height: 1.5,
-                  ),
-                );
-        }
-      }).toList(),
-    );
-  }
-
   Widget _buildTypingIndicator() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(3, (i) {
-        return AnimatedContainer(
-          duration: Duration(milliseconds: 400 + i * 150),
-          curve: Curves.easeInOut,
-          width: 7,
-          height: 7,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.5),
-            shape: BoxShape.circle,
-          ),
-        );
-      }),
+    return SizedBox(
+      width: 42,
+      height: 18,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(3, (i) {
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.3, end: 1.0),
+            duration: Duration(milliseconds: 500 + i * 150),
+            builder: (_, val, __) => Container(
+              width: 7,
+              height: 7,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withOpacity(val),
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildQuickPrompts() {
     return Container(
-      height: 44,
-      margin: const EdgeInsets.only(bottom: 8),
+      height: 48,
+      margin: const EdgeInsets.only(bottom: 4),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _quickPrompts.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
+          final p = _quickPrompts[i];
           return GestureDetector(
-            onTap: () => _sendMessage(_quickPrompts[i].substring(2).trim()),
+            onTap: () => _sendMessage(p.fullPrompt),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceContainerLow,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(50),
-                border: Border.all(color: AppTheme.outlineVariant, width: 1),
+                border:
+                    Border.all(color: AppTheme.outlineVariant, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: Text(
-                _quickPrompts[i],
+                '${p.emoji} ${p.label}',
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -381,60 +360,77 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInput() {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        16, 12, 16, 12 + MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + bottom),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           top: BorderSide(
-            color: AppTheme.outlineVariant.withOpacity(0.3),
+            color: AppTheme.outlineVariant.withOpacity(0.4),
             width: 1,
           ),
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              maxLines: 4,
-              minLines: 1,
-              onSubmitted: _sendMessage,
-              decoration: InputDecoration(
-                hintText: 'Ask about your crops...',
-                hintStyle: GoogleFonts.inter(
-                  color: AppTheme.onSurfaceVariant,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _controller,
+                maxLines: 4,
+                minLines: 1,
+                onSubmitted: (v) => _sendMessage(v),
+                style: GoogleFonts.inter(
                   fontSize: 14,
+                  color: AppTheme.onSurface,
                 ),
-                filled: true,
-                fillColor: AppTheme.surfaceContainerLow,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(50),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18, vertical: 12,
+                decoration: InputDecoration(
+                  hintText: 'Ask about your crops, soil, market...',
+                  hintStyle: GoogleFonts.inter(
+                    color: AppTheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 11,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           GestureDetector(
-            onTap: () => _sendMessage(_controller.text),
+            onTap: () {
+              if (!_isStreaming) _sendMessage(_controller.text);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 46,
-              height: 46,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: _isStreaming ? AppTheme.surfaceContainerHigh : AppTheme.primary,
-                borderRadius: BorderRadius.circular(50),
+                gradient: _isStreaming
+                    ? null
+                    : const LinearGradient(
+                        colors: [Color(0xFF2d5a27), Color(0xFF154212)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                color: _isStreaming ? AppTheme.surfaceContainerHigh : null,
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                _isStreaming ? Icons.stop_rounded : Icons.send_rounded,
-                color: _isStreaming ? AppTheme.primary : Colors.white,
-                size: 22,
+                _isStreaming
+                    ? Icons.hourglass_top_rounded
+                    : Icons.send_rounded,
+                color: _isStreaming ? AppTheme.onSurfaceVariant : Colors.white,
+                size: 20,
               ),
             ),
           ),
@@ -461,4 +457,11 @@ class _ChatMessage {
     required this.isUser,
     this.isStreaming = false,
   });
+}
+
+class _QuickPrompt {
+  final String emoji;
+  final String label;
+  final String fullPrompt;
+  const _QuickPrompt(this.emoji, this.label, this.fullPrompt);
 }

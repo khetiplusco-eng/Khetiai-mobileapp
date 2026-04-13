@@ -12,7 +12,9 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> {
-  final _crops = ['Cotton', 'Soybean', 'Wheat', 'Onion', 'Tomato', 'Sugarcane', 'Rice', 'Maize'];
+  final _crops = [
+    'Cotton', 'Soybean', 'Wheat', 'Onion', 'Tomato', 'Tur Dal', 'Rice', 'Maize'
+  ];
   String _selectedCrop = 'Cotton';
   MarketData? _marketData;
   bool _loading = false;
@@ -27,7 +29,12 @@ class _MarketScreenState extends State<MarketScreen> {
   Future<void> _fetchMarket() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await ApiService.getMarketForecast(_selectedCrop);
+      final data = await ApiService.getMarketForecast(
+        _selectedCrop,
+        district: 'Akola',
+        state: 'Maharashtra',
+        country: 'India',
+      );
       if (mounted) setState(() { _marketData = data; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
@@ -39,6 +46,8 @@ class _MarketScreenState extends State<MarketScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           'Market Intelligence',
           style: GoogleFonts.manrope(
@@ -49,7 +58,7 @@ class _MarketScreenState extends State<MarketScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppTheme.primary),
+            icon: Icon(Icons.refresh_rounded, color: AppTheme.primary, size: 20),
             onPressed: _fetchMarket,
           ),
         ],
@@ -59,17 +68,20 @@ class _MarketScreenState extends State<MarketScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 12),
             _buildCropSelector(),
             const SizedBox(height: 16),
-            if (_loading) _buildLoadingSkeleton(),
+            if (_loading) _buildSkeleton(),
             if (_error != null) _buildError(),
             if (_marketData != null && !_loading) ...[
               _buildCurrentPriceCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+              _buildSellHoldCard(),
+              const SizedBox(height: 14),
               _buildForecastChart(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _buildAnalysisCard(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _buildMSPTable(),
             ],
           ],
@@ -80,13 +92,13 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Widget _buildCropSelector() {
     return SizedBox(
-      height: 44,
+      height: 38,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _crops.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
-          final selected = _crops[i] == _selectedCrop;
+          final sel = _crops[i] == _selectedCrop;
           return GestureDetector(
             onTap: () {
               setState(() => _selectedCrop = _crops[i]);
@@ -94,17 +106,23 @@ class _MarketScreenState extends State<MarketScreen> {
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
               decoration: BoxDecoration(
-                color: selected ? AppTheme.primary : AppTheme.surfaceContainerLow,
+                color: sel ? AppTheme.primary : Colors.white,
                 borderRadius: BorderRadius.circular(50),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 4,
+                  ),
+                ],
               ),
               child: Text(
                 _crops[i],
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : AppTheme.onSurface,
+                  color: sel ? Colors.white : AppTheme.onSurface,
                 ),
               ),
             ),
@@ -116,21 +134,17 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Widget _buildCurrentPriceCard() {
     final d = _marketData!;
-    final trendColor = d.trend == 'up'
-        ? AppTheme.primary
-        : d.trend == 'down'
-            ? AppTheme.error
-            : AppTheme.outline;
-    final trendIcon = d.trend == 'up'
-        ? Icons.trending_up_rounded
-        : d.trend == 'down'
-            ? Icons.trending_down_rounded
-            : Icons.trending_flat_rounded;
+    final isUp = d.trend == 'up';
+    final isDown = d.trend == 'down';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppTheme.primary,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1a4d16), Color(0xFF154212)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -144,51 +158,174 @@ class _MarketScreenState extends State<MarketScreen> {
                   style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryFixed,
+                    color: AppTheme.primaryFixed.withOpacity(0.8),
                     letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
-                  '₹${d.currentPrice.toStringAsFixed(0)}',
+                  d.currentPrice > 0
+                      ? '₹${d.currentPrice.toStringAsFixed(0)}'
+                      : '—',
                   style: GoogleFonts.manrope(
-                    fontSize: 42,
+                    fontSize: 48,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                     height: 1,
                   ),
                 ),
                 Text(
-                  'per quintal (INR)',
+                  'per quintal',
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: AppTheme.primaryFixed.withOpacity(0.8),
+                    color: AppTheme.primaryFixed.withOpacity(0.7),
                   ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isUp
+                                ? Icons.trending_up_rounded
+                                : isDown
+                                    ? Icons.trending_down_rounded
+                                    : Icons.trending_flat_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            d.trend.toUpperCase(),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      d.trendStrength,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppTheme.primaryFixed.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(50),
+          // Opportunity score ring
+          SizedBox(
+            width: 70,
+            height: 70,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: d.opportunityScore / 100,
+                  strokeWidth: 6,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  valueColor:
+                      const AlwaysStoppedAnimation(Color(0xFFbcf0ae)),
                 ),
-                child: Icon(trendIcon, color: Colors.white, size: 28),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                d.trend.toUpperCase(),
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.primaryFixed,
-                  letterSpacing: 1,
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${d.opportunityScore}',
+                      style: GoogleFonts.manrope(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'OPP',
+                      style: GoogleFonts.inter(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryFixed,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSellHoldCard() {
+    final d = _marketData!;
+    final isSell = d.sellDecision.toLowerCase() == 'sell';
+    final color = isSell ? const Color(0xFF22c55e) : const Color(0xFFf59e0b);
+    final icon = isSell ? Icons.sell_rounded : Icons.inventory_2_rounded;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI Recommendation: ${d.sellDecision.toUpperCase()}',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                if (d.bestTimeToSell.isNotEmpty)
+                  Text(
+                    d.bestTimeToSell,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -199,49 +336,58 @@ class _MarketScreenState extends State<MarketScreen> {
     final forecast = _marketData!.forecast;
     if (forecast.isEmpty) return const SizedBox();
 
-    final maxY = forecast.map((e) => e.price).reduce((a, b) => a > b ? a : b) * 1.1;
-    final minY = forecast.map((e) => e.price).reduce((a, b) => a < b ? a : b) * 0.9;
+    final prices = forecast.map((e) => e.price).where((p) => p > 0).toList();
+    if (prices.isEmpty) return const SizedBox();
+
+    final maxY = prices.reduce((a, b) => a > b ? a : b) * 1.12;
+    final minY = prices.reduce((a, b) => a < b ? a : b) * 0.88;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '3-Month Forecast',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
+          Row(children: [
+            Text(
+              '3-Month Price Forecast',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.onSurface,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryFixed,
+                borderRadius: BorderRadius.circular(50),
+              ),
+              child: Text(
+                'AI Forecast',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.onSurface,
+                  color: AppTheme.primary,
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryFixed,
-                  borderRadius: BorderRadius.circular(50),
-                ),
-                child: Text(
-                  'AI Forecast',
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+            ),
+          ]),
+          const SizedBox(height: 18),
           SizedBox(
-            height: 200,
+            height: 180,
             child: LineChart(
               LineChartData(
                 minY: minY,
@@ -249,8 +395,8 @@ class _MarketScreenState extends State<MarketScreen> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: AppTheme.outlineVariant.withOpacity(0.3),
+                  getDrawingHorizontalLine: (v) => FlLine(
+                    color: AppTheme.outlineVariant.withOpacity(0.25),
                     strokeWidth: 1,
                   ),
                 ),
@@ -259,8 +405,8 @@ class _MarketScreenState extends State<MarketScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 60,
-                      getTitlesWidget: (value, meta) => Text(
-                        '₹${value.toStringAsFixed(0)}',
+                      getTitlesWidget: (v, _) => Text(
+                        '₹${v.toStringAsFixed(0)}',
                         style: GoogleFonts.inter(
                           fontSize: 10,
                           color: AppTheme.onSurfaceVariant,
@@ -271,14 +417,15 @@ class _MarketScreenState extends State<MarketScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value.toInt() < forecast.length) {
+                      getTitlesWidget: (v, _) {
+                        final i = v.toInt();
+                        if (i < forecast.length) {
                           return Padding(
-                            padding: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              forecast[value.toInt()].month,
+                              forecast[i].month,
                               style: GoogleFonts.inter(
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.onSurfaceVariant,
                               ),
@@ -289,8 +436,10 @@ class _MarketScreenState extends State<MarketScreen> {
                       },
                     ),
                   ),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
@@ -298,14 +447,16 @@ class _MarketScreenState extends State<MarketScreen> {
                     spots: forecast
                         .asMap()
                         .entries
-                        .map((e) => FlSpot(e.key.toDouble(), e.value.price))
+                        .where((e) => e.value.price > 0)
+                        .map((e) =>
+                            FlSpot(e.key.toDouble(), e.value.price))
                         .toList(),
                     isCurved: true,
                     color: AppTheme.primary,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: FlDotData(
-                      getDotPainter: (spot, percent, bar, index) =>
+                      getDotPainter: (_, __, ___, ____) =>
                           FlDotCirclePainter(
                         radius: 5,
                         color: AppTheme.primary,
@@ -319,7 +470,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          AppTheme.primary.withOpacity(0.2),
+                          AppTheme.primary.withOpacity(0.18),
                           AppTheme.primary.withOpacity(0),
                         ],
                       ),
@@ -335,34 +486,43 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Widget _buildAnalysisCard() {
+    final analysis = _marketData!.analysis;
+    if (analysis.isEmpty) return const SizedBox();
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.analytics_rounded, color: AppTheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Market Analysis',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.onSurface,
-                ),
+          Row(children: [
+            const Icon(Icons.analytics_rounded,
+                color: AppTheme.primary, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'Market Analysis',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.onSurface,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
+            ),
+          ]),
+          const SizedBox(height: 10),
           Text(
-            _marketData!.analysis,
+            analysis,
             style: GoogleFonts.inter(
-              fontSize: 14,
+              fontSize: 13.5,
               color: AppTheme.onSurface,
               height: 1.6,
             ),
@@ -378,6 +538,7 @@ class _MarketScreenState extends State<MarketScreen> {
       ('Soybean', '₹4,892'),
       ('Wheat', '₹2,275'),
       ('Paddy (Common)', '₹2,300'),
+      ('Tur Dal', '₹7,550'),
       ('Maize', '₹2,090'),
       ('Onion', 'No MSP'),
     ];
@@ -385,56 +546,60 @@ class _MarketScreenState extends State<MarketScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.policy_rounded, color: AppTheme.primary, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'MSP 2024-25 Reference',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.onSurface,
-                ),
+          Row(children: [
+            const Icon(Icons.policy_rounded,
+                color: AppTheme.primary, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              'MSP 2024-25 Reference',
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.onSurface,
               ),
-            ],
-          ),
+            ),
+          ]),
           const SizedBox(height: 12),
           ...msps.map((row) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  row.$1,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: AppTheme.onSurface,
-                  ),
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(row.$1,
+                        style: GoogleFonts.inter(
+                            fontSize: 13, color: AppTheme.onSurface)),
+                    Text(
+                      row.$2,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: row.$2 == 'No MSP'
+                            ? AppTheme.error
+                            : AppTheme.primary,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  row.$2,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: row.$2 == 'No MSP' ? AppTheme.error : AppTheme.primary,
-                  ),
-                ),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
   }
 
-  Widget _buildLoadingSkeleton() {
+  Widget _buildSkeleton() {
     return Column(
       children: List.generate(
         3,
@@ -443,7 +608,7 @@ class _MarketScreenState extends State<MarketScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: AppTheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
       ),
@@ -455,21 +620,19 @@ class _MarketScreenState extends State<MarketScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.errorContainer,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: AppTheme.error),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Failed to load market data. Check connection.',
-              style: GoogleFonts.inter(color: AppTheme.error, fontSize: 14),
-            ),
+      child: Row(children: [
+        const Icon(Icons.error_outline_rounded, color: AppTheme.error),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Failed to load market data.',
+            style: GoogleFonts.inter(color: AppTheme.error, fontSize: 13),
           ),
-          TextButton(onPressed: _fetchMarket, child: const Text('Retry')),
-        ],
-      ),
+        ),
+        TextButton(onPressed: _fetchMarket, child: const Text('Retry')),
+      ]),
     );
   }
 }
